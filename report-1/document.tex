@@ -49,6 +49,7 @@ dependency (BoringSSL, LibreSSL, and OpenSSL) and set up the scaffolding for
 future work.
 
 \section{Build issues}
+
 There were two major issues encountered with this deliverable. The first major
 issue stems from the fact that both BoringSSL and LibreSSL are forks of OpenSSL,
 that is to say we encountered numerous namespace collisions.
@@ -56,7 +57,9 @@ that is to say we encountered numerous namespace collisions.
 The second major issue arose from how much legacy code OpenSSL has. The legacy
 code made migrating build systems unfeasible for this deliverable.
 
-\textbf{Namespace collisions.} Each of the libraries export similar symbols,
+\subsection{Namespace collisions}
+
+Each of the libraries export similar symbols,
 build artifacts with the same name, and install to the same directories, and as
 such it would be difficult to link all three into the same application without
 any edits to any of the implementations.
@@ -66,7 +69,9 @@ located at $/usr/include/openssl$, and their libraries to be named $libcrypt$
 and $libssl$. This makes having an installation of more than one implementation
 based on OpenSSL difficult to say the least.
 
-\textbf{Legacy code in OpenSSL.} Initially, we tried converting the build system
+\subsection{Legacy code in OpenSSL}
+
+Initially, we tried converting the build system
 for OpenSSL to CMake, the system that BoringSSL and LibreSSL currently use. This
 proved to be challenging within the two week time constraint and was dropped as
 a hard requirement for this deliverable.
@@ -81,15 +86,17 @@ flags are not documented, and as such are difficult to account for when
 migrating the build system.
 
 \section{Solution}
+
 Each of the implementations, BoringSSL; LibreSSL; and OpenSSL, build target
 libraries $libcrypt$ and $libssl$, and place their header files in
-$/usr/include/openssl$. Installation of any one TLS implementation on a system-wide
-basis would mean that another implementation cannot be used in the same fashion
-due to the resulting namespace collisions.
+$/usr/include/openssl$. Installation of any one TLS implementation on a
+system-wide basis would mean that another implementation cannot be used due to
+the resulting collisions.
 
-HST requires that each of the TLS implementations be available on a system, and
-as such scaffolding has been set up so that each of the dependencies are built
-in-source. In the future, this may be changed to a subdirectory in $/var$.
+HST requires that each of the TLS implementations be available on the system,
+and as such scaffolding has been set up so that each of the dependencies are
+built in-source. In the future, this may be changed to a subdirectory in $/var$
+or perhaps a folder in the user's home directory.
 
 \section{Conclusion}
 
