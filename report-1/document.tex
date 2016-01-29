@@ -57,24 +57,27 @@ that is to say we encountered numerous namespace collisions.
 The second major issue arose from how much legacy code OpenSSL has. The legacy
 code made migrating build systems unfeasible for this deliverable.
 
-\subsection{Namespace collisions}
+These two issues are explored further in sections~\ref{Sec:Name}
+and~\ref{Sec:Legacy}.
 
-Each of the libraries export similar symbols,
+\subsection{Namespace collisions}\label{Sec:Name}
+
+Each of the libraries, BoringSSL; LibreSSL; and OpenSSL, export similar symbols,
 build artifacts with the same name, and install to the same directories, and as
 such it would be difficult to link all three into the same application without
 any edits to any of the implementations.
 
-The implementations all expect that their respective header files will be
-located at $/usr/include/openssl$, and their libraries to be named $libcrypt$
-and $libssl$. This makes having an installation of more than one implementation
-based on OpenSSL difficult to say the least.
+Installation of any one implementation on a system-wide basis would mean that
+another implementation cannot be used due to the resulting collisions. This
+makes having an installation of more than one implementation based on OpenSSL
+difficult to say the least.
 
-\subsection{Legacy code in OpenSSL}
+\subsection{Legacy code in OpenSSL}\label{Sec:Legacy}
 
-Initially, we tried converting the build system
-for OpenSSL to CMake, the system that BoringSSL and LibreSSL currently use. This
-proved to be challenging within the two week time constraint and was dropped as
-a hard requirement for this deliverable.
+Initially, we tried converting the build system for OpenSSL to CMake, the system
+that BoringSSL and LibreSSL currently use. This proved to be challenging within
+the two week time constraint and was dropped as a hard requirement for this
+deliverable.
 
 OpenSSL currently includes an unreasonable amount of legacy code in its build
 scripts. For example, there were multiple tests that were not being used, or
@@ -85,22 +88,26 @@ a number of compiler flags to be passed in at configuration time. Many of these
 flags are not documented, and as such are difficult to account for when
 migrating the build system.
 
-\section{Solution}
-
-Each of the implementations, BoringSSL; LibreSSL; and OpenSSL, build target
-libraries $libcrypt$ and $libssl$, and place their header files in
-$/usr/include/openssl$. Installation of any one TLS implementation on a
-system-wide basis would mean that another implementation cannot be used due to
-the resulting collisions.
+\section{Deliverable}
 
 HST requires that each of the TLS implementations be available on the system,
 and as such scaffolding has been set up so that each of the dependencies are
 built in-source. In the future, this may be changed to a subdirectory in $/var$
 or perhaps a folder in the user's home directory.
 
+Additionally, a rudimentary application was built to demo how a TLS
+implementation could be swapped without recompiling the target application. This
+provides a solid foundation for future work.
+
+\pagebreak
+
 \section{Conclusion}
 
-Further areas of work include increased library modularity, usage of a
+We have solved the namespace collision issues and have created a
+proof-of-concept application which can swap out implementations of a function at
+runtime. This deliverable provides a solid foundation for future work.
+
+Further areas of work include increasing library modularity, and the using a
 non-OpenSSL fork (e.g. GnuTLS).
 
 Increased library modularity would allow for more than merely swapping
