@@ -1,0 +1,146 @@
+\documentclass{acm_proc_article-sp}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{url}
+
+\title{HotSwapTLS}
+
+\numberofauthors{1}
+\author{
+    \alignauthor
+    Bheesham Persaud\\
+        \affaddr{Carleton University}\\
+        \affaddr{1125 Colonel By Drive}\\
+        \affaddr{Ottawa, Ontario}\\
+        \email{bheeshampersaud@cmail.carleton.ca}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}\label{sec:abstract}
+
+The purpose of the HotSwapTLS project is to create a method in which
+applications can use different implementation of Transport Layer Security (TLS)
+without requiring recompilation. The TLS implementations that we will support
+include: OpenSSL~\cite{openssl}, LibreSSL~\cite{libressl}, and
+BoringSSL~\cite{boringssl}.
+
+This will be achieved by building applications which link against a stub
+library, $libhst$. A minimal TLS API will be exposed by different libraries
+which can be loaded at runtime. Each library will will use a different TLS
+implementation as it's backend.
+
+Additionally, $hst$, a tool to easily manage different TLS implementations and
+their versions will be created. This is required as the TLS implementations are
+often not compatible with each other -- installing one overwrites the other, as
+is the case with LibreSSL and OpenSSL.
+
+\end{abstract}
+
+\section{Motivation}\label{Sec:Motiv}
+
+The majority of networking software built require, more or less, the same
+protocols to be implemented. Chances are, if you're running a server application
+then it requires library which implements the Transport Layer Security (TLS
+protocol) -- a protocol that is notoriously hard to implement correctly. There
+are multiple security vulnerabilities reported in implementations of TLS each
+year.
+
+In 2014 and 2015 the OpenSSL project reported a total of 54 Common
+Vulnerabilities and Exposures (CVE)~\cite{opensslsec}, of which the infamous
+Heartbleed bug was included.
+
+The announcement of the Heartbleed bug in OpenSSL caused many community driven
+forks to be created, including LibreSSL and BoringSSL. LibreSSL is a fork
+managed by the OpenBSD developers and BoringSSL is a fork managed by Google.
+
+\pagebreak
+
+\section{Objectives}\label{Sec:Obj}
+
+The final deliverable of this project is a run-time environment which allows
+users to be able to run applications with different security libraries without
+having to go through the trouble of recompilation.
+
+HotSwapTLS is an ambitious project and requires multiple deliverables to be
+completed.
+
+\subsection{Expected deliverables}\label{Sec:Deliver}
+
+There will be two deliverables from this project. $libhst$, the core library
+which applications need to be built with; and $hst$, a utility for managing TLS
+backends.
+
+A timeline in which the $libhst$ and $hst$ deliverables can be expected is outlined
+in section~\ref{Sec:Time}.
+
+\subsubsection{libhst}
+
+$libhst$ is the core of the project and will require the bulk of work. $libhst$
+will define a minimal programming interface in order to make an application
+TLS-aware. Each of the functions defined here will have to support using either
+of the TLS libraries as a backend, which, for this project, will be OpenSSL,
+LibreSSL, and BoringSSL.
+
+\textbf{tls\_init}. Initializes the library, calling any initialize functions
+that the backend requires.
+
+\textbf{tls\_read}. Reads from a file descriptor.
+
+\textbf{tls\_write}. writes to a file descriptor.
+
+\textbf{tls\_deinit}. Cleans up and deinitializes the TLS libraries.
+
+\subsubsection{hst}
+
+$hst$ will be a binary utility to manage installed TLS backends. Currently,
+popular operating systems, such as Fedora, do not package OpenSSL and it's forks
+in a way which they are compatible with each other. For example, an installation
+of LibreSSL will overwrite a previous installation of OpenSSL and vice versa.
+
+$hst$ will also be able to manage different versions of the same library. This
+is to mitigate bugs introduced by updates.
+
+\pagebreak
+
+\section{Timeline}\label{Sec:Time}
+
+Development of HotSwapTLS will take place over the course of 12 weeks. The
+project's expected timeline as well as expected completion dates of deliverables
+such as $libhst$, $hst$, and a final report are outlined below.
+
+\subsection{January, 2016}
+
+\textbf{Week 02 (Jan. 25 -- Jan. 29).} Project scaffolding to build OpenSSL,
+LibreSSL, BoringSSL, stub libraries, and API implementations.
+
+\subsection{February, 2016}
+
+\textbf{Week 04 (Feb. 08 -- Feb. 12).} $libhst$: a collection of the stub
+library applications will link against and various libraries that implement a
+minimal TLS API using the different TLS backends.
+
+\textbf{Week 06 (Feb. 22 -- Feb. 26).} Prepare mid-term report and implement an
+echo server and client to test $libhst$.
+
+\subsection{March, 2016}
+
+\textbf{Week 08 (Mar. 07 -- Mar. 11).} Begin work on the final report and test
+the libraries.
+
+\textbf{Week 10 (Mar. 21 -- Mar. 25).} Implement $hst$: an application to make
+running $libhst$-compatible applications easier.
+
+\subsection{April, 2016}
+
+\textbf{Week 12 (Apr. 04 -- Apr. 08).} Preparation of final report.
+
+\bibliographystyle{abbrv}
+\bibliography{sigproc}
+
+\balancecolumns
+
+\end{document}

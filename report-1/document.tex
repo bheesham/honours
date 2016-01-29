@@ -1,0 +1,115 @@
+\documentclass{acm_proc_article-sp}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{url}
+
+\title{HotSwapTLS: Report for January 18-28, 2016}
+
+\numberofauthors{1}
+\author{
+    \alignauthor
+    Bheesham Persaud\\
+        \affaddr{Carleton University}\\
+        \affaddr{1125 Colonel By Drive}\\
+        \affaddr{Ottawa, Ontario}\\
+        \email{bheeshampersaud@cmail.carleton.ca}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}\label{sec:abstract}
+  Installing BoringSSL~\cite{boringssl}, LibreSSL~\cite{libressl}, and
+  OpenSSL~\cite{openssl} side-by-side on the same system requires an unfeasible
+  amount of work.
+
+  A major source of issues arose from the the fact that modifying each of the
+  projects' build system to ensure the required include files, the linked
+  libraries, and the compiled symbols will not collide would have taken a
+  non-trivial amount of time. Additionally, major issues also arose due to
+  OpenSSL's inclusion of legacy and, in some cases, vestigial code.
+
+  Our solution is to build each TLS implementation in a subdirectory, then link
+  to them. This method gets rid of any high-level namespace collisions, however,
+  only works when we want to swap entire implementations out for each other and
+  therefore provides minimal modularity.
+
+  Needless to say, building each dependency in accordance to the original
+  project proposal did not go according to plan, but contributions were
+  suggested and accepted upstream -- everybody wins.
+\end{abstract}
+
+\section{Introduction}
+
+This report summarizes the work done between the period of 18 January 2016 and
+29 January 2016. The goal for this two week sprint was to correctly build each
+dependency (BoringSSL, LibreSSL, and OpenSSL) and set up the scaffolding for
+future work.
+
+\section{Build issues}
+There were two major issues encountered with this deliverable. The first major
+issue stems from the fact that both BoringSSL and LibreSSL are forks of OpenSSL,
+that is to say we encountered numerous namespace collisions.
+
+The second major issue arose from how much legacy code OpenSSL has. The legacy
+code made migrating build systems unfeasible for this deliverable.
+
+\textbf{Namespace collisions.} Each of the libraries export similar symbols,
+build artifacts with the same name, and install to the same directories, and as
+such it would be difficult to link all three into the same application without
+any edits to any of the implementations.
+
+The implementations all expect that their respective header files will be
+located at $/usr/include/openssl$, and their libraries to be named $libcrypt$
+and $libssl$. This makes having an installation of more than one implementation
+based on OpenSSL difficult to say the least.
+
+\textbf{Legacy code in OpenSSL.} Initially, we tried converting the build system
+for OpenSSL to CMake, the system that BoringSSL and LibreSSL currently use. This
+proved to be challenging within the two week time constraint and was dropped as
+a hard requirement for this deliverable.
+
+OpenSSL currently includes an unreasonable amount of legacy code in its build
+scripts. For example, there were multiple tests that were not being used, or
+built that were included in the source~\cite{issue}.
+
+Additionally, OpenSSL requires many files to be generated before compilation and
+a number of compiler flags to be passed in at configuration time. Many of these
+flags are not documented, and as such are difficult to account for when
+migrating the build system.
+
+\section{Solution}
+Each of the implementations, BoringSSL; LibreSSL; and OpenSSL, build target
+libraries $libcrypt$ and $libssl$, and place their header files in
+$/usr/include/openssl$. Installation of any one TLS implementation on a system-wide
+basis would mean that another implementation cannot be used in the same fashion
+due to the resulting namespace collisions.
+
+HST requires that each of the TLS implementations be available on a system, and
+as such scaffolding has been set up so that each of the dependencies are built
+in-source. In the future, this may be changed to a subdirectory in $/var$.
+
+\section{Conclusion}
+
+Further areas of work include increased library modularity, usage of a
+non-OpenSSL fork (e.g. GnuTLS).
+
+Increased library modularity would allow for more than merely swapping
+in--and--out implementations of TLS. Increased modularity in the HST library
+could allow for the mixing and matching different TLS functions, such as init,
+deinit, write, and read from different implementations.
+
+HST could benefit greatly from using a completely different implementation of
+TLS. A completely different implementation would reduce the amount of code
+required to ensure no namespace collisions, however making sure that there is no
+loss of data may be non-trivial. For example, the conversion of a OpenSSL TLS
+structure to a GnuTLS TLS structure.
+
+\bibliographystyle{abbrv}
+\bibliography{sigproc}
+
+\balancecolumns
+
+\end{document}
