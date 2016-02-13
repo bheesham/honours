@@ -1,0 +1,172 @@
+\documentclass{acm_proc_article-sp}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{appendix}
+\usepackage{url}
+
+\title{HotSwapTLS: Report for 29 January - 12 February, 2016}
+
+\numberofauthors{1}
+\author{
+    \alignauthor
+    Bheesham Persaud\\
+        \affaddr{Carleton University}\\
+        \affaddr{1125 Colonel By Drive}\\
+        \affaddr{Ottawa, Ontario}\\
+        \email{bheeshampersaud@cmail.carleton.ca}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}\label{sec:abstract}
+  The init, deinit, and version functions were implemented during this sprint.
+  There were a few challenges, mainly arising from the fact that each library
+  exported the same symbols, and that each implementation differs so there are
+  segfaults that need to be worked around.
+
+  This deliverable is incomplete. It does not meet the requirements outlined in
+  the proposal. The read and write functions are not implemented as there are
+  still numerous design issues left to be ironed out. These issues will be
+  expanded upon further. Additionally, testing the software is tedious as there
+  are now $9$ combinations in which the implementations can be combined.
+
+  Future work needs to be done on implementing more functions, both at a high
+  level (e.g read, write), and at a low level (e.g. handling of data structures,
+  specifically the SSL context). The handling of data structures must be done
+  with care as it is trivially easy to introduce segfaults if done incorrectly.
+\end{abstract}
+
+\section{Introduction}
+
+This report summarizes the work done between the period of 29 January 2016 and
+12 February 2016. The goal for this two week sprint was to create an high level
+API to each implementation, namely, OpenSSL~\cite{openssl},
+LibreSSL~\cite{libre}, and BoringSSL~\cite{boringssl}.
+
+The high level API was to expose functions to securely initiate, deinitialize,
+read, and write session.
+
+We encountered similar issues as we did in the previous deliverable, namely
+collisions. This is discussed further in section~\ref{Sec:Issues}. Items
+included in this deliverable are discussed in section~\ref{Sec:Deliv}.
+
+\pagebreak
+
+\section{Build issues}\label{Sec:Issues}
+
+In the previous deliverable, we ran into namespace collisions yet again --
+simply at a different level. Previously, namespace collisions happened on a
+system-wide basis, that is, only one implementation was allowed to be installed.
+In this deliverable, we encountered a different kind of namespace collision:
+collisions between symbols that are exported by the libraries. Symbol collision
+is discussed further in section~\ref{Sec:Symbol}.
+
+Additionally, the swapping of implementations of the high-level interfaces is
+unsupported at this time due to the differences in how each library does each
+operation. Operations on a data structure must be done using functions from the
+same library otherwise segfaults will be introduced into the program -- the
+natural enemy of secure software. Segmentation faults were completely expected,
+and will be ironed out as the project matures.
+
+\subsection{Symbol Collisions}\label{Sec:Symbol}
+
+Two the libraries, specifically BoringSSL and LibreSSL, export the same symbols
+for various functions. Before we could have implemented a wrapper around each
+library, we needed to ensure that the correct function would have been called
+from each library. That is, we needed to make sure that the program, at runtime,
+knew which version of a function to call.
+
+Multiple solutions to get around symbol collisions were looked into, namely: the
+use of objcopy~\cite{objcopy} to rename important symbols, writing a LLVM
+compiler pass~\cite{llvmpass}, and using symbol versioning~\cite{versioning}.
+
+Ultimately, we moved forward with symbol versioning as it is, we believe, the
+most transparent way to achieve non-colliding, globally exported symbols and
+only requires minimal changes to each codebase. Our research into the
+possibility of using each of of the proposed methods can be found in the next
+section: section~\ref{Sec:Res}.
+
+\subsubsection{Results}\label{Sec:Res}
+
+\textbf{objcopy}. Using this method would require us to modify not only the
+compiled shared object files, but also to create our own header files with
+prototypes to each of the functions. This would, in essence, give a result
+equivalent to writing our own compiler pass.
+
+\textbf{LLVM compiler pass}. We would have to maintain our own header files.
+This option is not entirely unreasonable, but it would require the maintenance
+of many header files.
+
+\textbf{Symbol versioning}. After reading the section on Symbol Relocations, and
+Export Control of Drepper's
+\textit{How To Write Shared Libraries}~\cite{howtodso}, we decided that his
+method was perfect for our needs. It required, an additional two compiler flags
+and the creation of a symbol map, which was trivial to write. By exporting the
+version of a symbol, each library we linked to would have saved a reference to
+the library it was referring to at link-time, which meant that at runtime the
+expected functions should be called.
+
+\section{Deliverable}\label{Sec:Deliv}
+
+This deliverable adds the ability for a user to report using a fake library, as
+mixing and matching the high level API (init, deinit, read, write) are not yet
+supported.
+
+Examples can be seen in appendicies~\ref{Ex:ex1} and~\ref{Ex:ex2}.
+
+\section{Conclusion}
+
+Symbol collisions are a problem of the past thanks to symbol versioning. There
+was no need to use binutils, nor to create a LLVM compiler pass in order to make
+sure there are no symbol collisions.
+
+There is, however, still the issue of segmentation faults due to how each
+library implements each function.
+
+Future work includes adding more high level and low level function calls to
+libhst from all 3 implementations, and to make sure that the library exposed by
+libhst is safe and bug-free. In order to deliver a stable version of libhst, I
+propose that development on the binary utility to aid in preloading libraries at
+runtime be postponed.
+
+\bibliographystyle{abbrv}
+\bibliography{sigproc}
+
+\onecolumn
+\newpage
+\appendix
+\section{Example: linking with all 3 implementations}\label{Ex:ex1}
+\begin{verbatim}
+$ LD_PRELOAD="lib/libhstopen_init.so lib/libhstboring_deinit.so lib/libhstlibre_version.so" ldd ./bin/init
+        linux-vdso.so.1 (0x00007ffd6755a000)
+        lib/libhstopen_init.so (0x00007f149ba99000)
+        lib/libhstboring_deinit.so (0x00007f149b896000)
+        lib/libhstlibre_version.so (0x00007f149b694000)
+        libhststub.so => /.../hst/libhst/build/lib/libhststub.so (0x00007f149b492000)
+        libc.so.6 => /lib64/libc.so.6 (0x00007f149b0a9000)
+        libdl.so.2 => /lib64/libdl.so.2 (0x00007f149aea5000)
+        libssl.so.1.1 => /.../hst/libhst/open/../../openssl/libssl.so.1.1 (0x00007f149ac3b000)
+        libcrypto.so.1.1 => /.../hst/libhst/open/../../openssl/libcrypto.so.1.1 (0x00007f149a7df000)
+        libssl.so => /.../hst/libhst/boring/../../boringssl/build/ssl/libssl.so (0x00007f149a596000)
+        libcrypto.so => /.../hst/libhst/boring/../../boringssl/build/crypto/libcrypto.so (0x00007f149a1f7000)
+        libcrypto.so.37 => /.../hst/libhst/libre/../../libressl/crypto/.libs/libcrypto.so.37 (0x00007f1499e1d000)
+        /lib64/ld-linux-x86-64.so.2 (0x000055562a483000)
+        libpthread.so.0 => /lib64/libpthread.so.0 (0x00007f1499bff000)
+        libresolv.so.2 => /lib64/libresolv.so.2 (0x00007f14999e4000)
+\end{verbatim}
+
+\section{Example: faking the library version}\label{Ex:ex2}
+\begin{verbatim}
+$ LD_PRELOAD="lib/libhstopen_init.so lib/libhstopen_deinit.so lib/libhstlibre_version.so" ./bin/init
+HST: using libre's impl of: hst_tls_version
+Using version: LibreSSL 2.3.2
+HST: using open's impl of: hst_tls_init
+HST: using open's impl of: hst_tls_deinit
+\end{verbatim}
+
+\balancecolumns
+
+\end{document}
