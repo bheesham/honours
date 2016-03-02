@@ -1,0 +1,126 @@
+\documentclass{acm_proc_article-sp}
+\usepackage{appendix}
+\usepackage{caption}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{url}
+\usepackage[table]{xcolor}
+
+\title{HotSwapTLS: Report for 13 February - 26 February, 2016}
+
+\numberofauthors{1}
+\author{
+    \alignauthor
+    Bheesham Persaud\\
+        \affaddr{Carleton University}\\
+        \affaddr{1125 Colonel By Drive}\\
+        \affaddr{Ottawa, Ontario}\\
+        \email{bheeshampersaud@cmail.carleton.ca}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}\label{sec:abstract}
+
+  The three different libraries have varying representations of how to store
+  global SSL session data -- that is, data that is required to initiate a secure
+  connection, including the CA certificate, private key, and various
+  configuration options.
+
+  The method we chose to combine the different libraries, as it turns out, was
+  not a great choice. The SSL contexts between the different libraries differ
+  too much to be able to replace the higher-level APIs, but, replacing the
+  fundamental cryptography APIs could yield better results.
+
+  Future work should be done more than just the SSL-related parts of the
+  libraries, specifically the cryptography fundamentals of each library.
+
+\end{abstract}
+
+\section{Introduction}
+
+This report summarizes the work done between the period of 13 February 2016 and
+26 February 2016. The goal of this sprint was to debug the memory errors that
+were being reported when the different libraries of TLS were mixed.  No further
+work was done on adding high level APIs to read or write data from sessions
+apart getting rid of bugs.
+
+The differences between OpenSSL, BoringSSL, and LibreSSL were painfully apparent
+for the duration of this sprint. As is well documented by Google, BoringSSL does
+not try to be a drop-in replacement for OpenSSL.
+
+In this report, we investigate the differences between each of the contexts and
+propose possible techniques for mitigation. Additionally, we raise some security
+concerns with regards to dynamically loading different libraries of TLS.
+
+\section{Testing configurations}\label{Sec:Config}
+
+We have tested all combinations of API libraries and none of them are
+viable for practical use. Programs have either thrown a fatal error or have
+leaked memory, not ideal in either case. The memory errors arise because of the
+difference in the SSL\_CTX (ssl\_ctx\_st) structure defined in each library.
+
+All combinations were, painstakingly, obtained by using both valgrind and gdb.
+
+\subsubsection{Results}\label{Sec:Res}
+
+\begin{table}
+\begin{center}
+    \begin{tabular}{ l | l | r }
+      \textbf{init}       &       \textbf{deinit} &       \textbf{Result}  \\
+      \hline
+      Open                &       Open            &       Works!\\
+      Open                &       Boring            &       SIGABRT\\
+      Open                &       Libre            &       SIGSEGV\\
+      \rowcolor{gray!25}
+      Boring                &       Boring            &       Works!\\
+      \rowcolor{gray!25}
+      Boring                &       Open            &       Leak!\\
+      \rowcolor{gray!25}
+      Boring                &       Libre            &       Leak!\\
+      \rowcolor{gray!50}
+      Libre                &       Libre            &       Works!\\
+      \rowcolor{gray!50}
+      Libre                &       Boring            &       SIGABRT\\
+      \rowcolor{gray!50}
+      Libre                &       Open            &       SIGSEGV\\
+    \end{tabular}
+    \caption{Tabularized results from testing.}
+\end{center}
+\end{table}
+
+It is unlikely that we will be able to use BoringSSL's SSL high-level
+library in future versions, as it strays the most from OpenSSL. As noted
+on the BoringSSL project page, ``Although BoringSSL is an open source project,
+it is not intended for general use, as OpenSSL is. We don\'t recommend that
+third parties depend upon it. Doing so is likely to be frustrating because there
+are no guarantees of API or ABI stability.''\cite{boringssl}
+
+There was no case in which any of the libraries worked well together, even with
+some rudimentary "shim" code. The differences between each library's SSL
+context, and what is required to correctly allocate it vary too greatly to be
+able to be done in the time span of a sprint.
+
+\section{Deliverable}\label{Sec:Deliv}
+
+This deliverable includes only bug fixes and analysis.
+
+\section{Conclusion}
+
+There is a lot of variance in how each library stores their respective SSL
+context, notably BoringSSL. There is currently no safe combination of two
+different libraries.
+
+Future work should be done more than just the SSL-related parts of the
+libraries, specifically the cryptography fundamentals of each library.
+
+Areas for future research include the cryptography fundamentals that each
+library provides, specifically their allocators, deallocators, locking, and
+encryption APIs.
+
+\bibliographystyle{abbrv}
+\bibliography{sigproc}
+\balancecolumns
+\end{document}

@@ -1,0 +1,4 @@
+texlive-epstopdf
+texlive-ftnxtra
+texlive-listings
+
