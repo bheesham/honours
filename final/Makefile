@@ -13,12 +13,11 @@ spell: document.tex
 	aspell -t -c document.tex
 
 clean:
-	rm -f *.aux *.blg *.bbl \
-	      *.dvi *.idx *.ist \
-	      *.gls *.glo *.lof \
-	      *.log *.lot *.out \
-	      *.toc \
-	      document.pdf
+	rm -f *.aux *.bak *.blg \
+	      *.bbl *.dvi *.idx \
+	      *.ist *.gls *.glo \
+	      *.lof *.log *.lot \
+	      *.out *.toc document.pdf
 
 .PHONY: clean spell 
 
