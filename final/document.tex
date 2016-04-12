@@ -1,15 +1,34 @@
 \documentclass[12pt,oneside]{report}
 \usepackage{hyperref}
+\usepackage[parfill]{parskip}
+\usepackage[table]{xcolor}
+
 \usepackage{carleton/titlepage}
+\usepackage{carleton/abstract}
+\usepackage{carleton/acks}
+\usepackage{carleton/tocandlists}
 
 \providecommand\phantomsection{}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%    Thesis information
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\title{HotSwapTLS}
 \author{Bheesham Persaud}
 \supervisor{Dr. Anil Somayaji, School of Computer Science}
-\title{HotSwapTLS}
-\date{\today}
+\date{13 April 2016}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%    Custom settings
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\linespread{1.25}
 
 \begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%    Title page
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \cartitle
 
@@ -18,92 +37,311 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{abstract}
-	OpenSSL\cite{website:openssl}, BoringSSL\cite{website:boringssl},
-	LibreSSL\cite{website:libressl}.
+	% @TODO
+	The purpose of the HotSwapTLS project is to create a method in which
+	applications can use different implementation of Transport Layer
+	Security (TLS) without requiring recompilation. The TLS implementations
+	that we will support include: OpenSSL~\cite{website:openssl},
+	LibreSSL~\cite{website:libressl}, and
+	BoringSSL~\cite{website:boringssl}.
+
+	This will be achieved by building applications which link against a stub
+	library, $libhst$. A minimal TLS API will be exposed by different
+	libraries which can be loaded at runtime. Each library will will use a
+	different TLS implementation as it's backend.
+
+	Additionally, $hst$, a tool to easily manage different TLS
+	implementations and their versions will be created. This is required as
+	the TLS implementations are often not compatible with each other --
+	installing one overwrites the other, as is the case with LibreSSL and
+	OpenSSL.
 \end{abstract}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%    Acknowledgements
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\phantomsection
-\addcontentsline{toc}{section}{Acknowledgements}
-\section*{Acknowledgements}
+\begin{caracks}
+	% @TODO
+	I would like to thank my supervisor, Anil Somayaji, for all of his
+	guidance with this project.
 
-Blargh.
+	I grateful to my parents, Lelawattie and Shradanand Persaud lending
+	their advice and their support while pursuing my degree.
+\end{caracks}
 
-\cleardoublepage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%    Table of Contents, List of Figures, List of Tables
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\tableofcontents
-\cleardoublepage
-
-\phantomsection
-\addcontentsline{toc}{section}{List of Figures}
-\listoffigures
-\cleardoublepage
-
-\phantomsection
-\addcontentsline{toc}{section}{List of Tables}
-\listoftables
-\cleardoublepage
+\cartocandlists
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%    Paper substance
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Introduction}
+\chapter{Introduction}
 
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+Modern computers are often connected to large networks to exchange information.
+The majority of the software required to make the exchange of information run
+smoothly require all participants to, more or less, implement the same
+networking protocols. However, clients must be wary of potential malicious
+computers on their network. To mitigate the dangers of malicious computers,
+cryptographic protocols are used to protect clients' information while in
+transit over a network.
 
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+We will be analyzing implementations of one such cryptographic protocol, namely
+Transport Security Layer (TLS) -- previously known as Secure Socket Layer (SSL).
+The specification for the TLS protocol is long and complex, making it
+notoriously hard to correctly implement.
 
-\section{Background}
+There are multiple security vulnerabilities reported in implementations of the
+TLS protocol each year. In 2014 and 2015 the OpenSSL project reported a total of
+54 Common Vulnerabilities and Exposures (CVE)~\cite{website:opensslsec}, of
+which the infamous Heartbleed bug was included. The announcement of the
+Heartbleed bug in OpenSSL caused many community driven forks to be created,
+including LibreSSL and BoringSSL. LibreSSL and BoringSSL are forks,
+respectively, managed by the OpenBSD developers and by Google.
 
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+While many changes and improvements from both BoringSSL and LibreSSL are
+incorporated back into OpenSSL, there are significant differences between the
+three projects -- this can be attributed to each of their respective goals. 
 
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+LibreSSL is developed with the goal of ``... modernizing the codebase, improving
+security, and applying best practice development
+processes''~\cite{website:libressl}. In the case of BoringSSL, although it ``...
+is an open source project, it is not intended for general use, as OpenSSL is. We
+don\'t recommend that third parties depend upon it. Doing so is likely to be
+frustrating because there are no guarantees of API or ABI
+stability.''~\cite{website:boringssl}
 
-\subsection{Related works}
+Our objective is to create an application which uses best parts of each library.
+This paper documents our progress towards consolidating the different
+implementations of TLS that OpenSSL, BoringSSL, and LibreSSL offer into one
+application. Our design goals and methodology are briefly discussed in
+section~\ref{sec:design}; our implementation details and issues we encountered
+are outlined in section~\ref{sec:impl}; our evaluation of the implementation of
+our aforementioned design goals is presented in section~\ref{sec:eval}; and our
+conclusion in section~\ref{sec:con}.
 
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+\cleardoublepage
 
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+\chapter{Design}
+\label{sec:design}
 
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+The goal of our project is to take the best parts of each library -- OpenSSL,
+BoringSSL, and LibreSSL -- and combine them such a client, at run time, would be
+able to mix and match features from any library. The ability to mix and match
+features gains us an interesting property: resistance to attacks on any one
+specific library. In other words, we could create a program which leverages
+OpenSSL, BoringSSL, and LibreSSL without being completely vulnerable to an
+exploit found in only one of them.
 
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+We believe our goal makes it hard to justify significantly modifying any one of
+the libraries. Ideally, the final product will have the following properties:
+\begin{enumerate}
+	\item minimal changes to the source code for each library;
+	\item require building only once and only once; and
+	\item reconfigurable at runtime.
+\end{enumerate}
+
+\newpage
+
+To meet our design goals we propose a minimal programming interface in order to
+make an application built using our framework TLS-aware. Each of the functions
+defined here will support using any combination of the OpenSSL, LibreSSL, or
+BoringSSL libraries as a backend.
+
+\textbf{tls\_init}. Initializes the library, calling any initialize functions
+that the backend requires.
+
+\textbf{tls\_read}. Reads from a file descriptor.
+
+\textbf{tls\_write}. writes to a file descriptor.
+
+\textbf{tls\_deinit}. Cleans up and deinitializes the TLS libraries.
+
+We explore how we have achieved each of our design goals in the next chapter.
+
+\cleardoublepage
+
+\chapter{Implementation}
+\label{sec:impl}
+
+This chapter is divided into three sections. In the first,
+section~\ref{sec:scaff}, we discuss how the project is physically layed out --
+the project scaffolding. The second section, section~\ref{sec:build}, documents
+what kind of build system and modifications to the libraries' we had to employ
+-- getting everything to play nicely.  The third section, section
+~\ref{sec:symbol}, deals with issues that arose from linking multiple libraries
+-- symbol resolution.
+
+\section{Scaffolding}
+\label{sec:scaff}
+
+Installing OpenSSL~\cite{website:openssl}, BoringSSL~\cite{website:boringssl},
+and LibreSSL~\cite{website:libressl} side-by-side on the same system can be a
+daunting task for novices. Each of the libraries -- due to the nature of having
+the same origin -- export similar symbols, build artifacts with the same name,
+and install to the same directories.
+
+Installation of any one implementation on a system-wide basis would mean that
+another implementation cannot be used due to the resulting collisions. This
+makes having an installation of more than one implementation based on OpenSSL
+difficult, to say the least. These collisions make it impossible to link all
+three into the same application without any edits to any of the implementations.
+
+Our solution is to build each TLS implementation in a subdirectory, then link
+them at runtime. This method gets rid of any high-level namespace collisions,
+however, only works when we want to swap entire implementations out for each
+other and therefore provides minimal modularity. The methods we used to achieve
+this is discussed further in section~\ref{sec:build}, where we discuss our build
+system. 
+
+\section{Build infrastructure}
+\label{sec:build}
+
+Initially, we tried converting the build system for OpenSSL to CMake, the system
+that BoringSSL and LibreSSL currently use. This proved to be challenging within
+the two week time constraint and was dropped as a hard requirement for this
+deliverable.
+
+Additionally, OpenSSL requires many files to be generated before compilation and
+a number of compiler flags to be passed in at configuration time. Many of these
+flags are not documented, and as such are difficult to account for when
+migrating the build system.
+
+Additionally, to provide maximal modularity we must be able to swap exported
+symbols at runtime. This issue is covered in-depth in section~\ref{sec:symbol}.
+
+\newpage
+
+\section{Symbol resolution}
+\label{sec:symbol}
+
+Explain what symbols are, and how resolution is done is.
+
+Two of the libraries, BoringSSL and LibreSSL, export the same symbols for
+various functions. Before we could have implemented a wrapper around each
+library, we needed to ensure that the correct function would have been called
+from each library. That is, we needed to make sure that the program, at runtime,
+knew which version of a function to call.
+
+Multiple solutions to get around symbol collisions were looked into, namely: the
+use of objcopy~\cite{website:objcopy} to rename important symbols, writing a
+LLVM compiler pass~\cite{website:llvmpass}, and using symbol
+versioning~\cite{website:versioning}.
+
+Ultimately, we moved forward with symbol versioning as it is, we believe, the
+most transparent way to achieve non-colliding, globally exported symbols and
+only requires minimal changes to each codebase. Our research into the
+possibility of using each of of the proposed methods can be found in the next
+section: section~\ref{sec:symbol_res}.
+
+\subsection{Putting the ``solution'' to symbol resolution}
+\label{sec:symbol_res}
+
+\textbf{objcopy}. Using this method would require us to modify not only the
+compiled shared object files, but also to create our own header files with
+prototypes to each of the functions. This would, in essence, give a result
+equivalent to writing our own compiler pass.
+
+\textbf{LLVM compiler pass}. We would have to maintain our own header files.
+This option is not entirely unreasonable, but it would require the maintenance
+of many header files.
+
+\textbf{Symbol versioning}. After reading the section on Symbol Relocations, and
+Export Control of Drepper's
+\textit{How To Write Shared Libraries}~\cite{website:howtodso}, we decided that
+his method was perfect for our needs. It required, an additional two compiler
+flags and the creation of a symbol map, which was trivial to write. By exporting
+the version of a symbol, each library we linked to would have saved a reference
+to the library it was referring to at link-time, which meant that at runtime the
+expected functions should be called.
+
+\cleardoublepage
+
+\chapter{Evaluation}
+\label{sec:eval}
+
+We have tested all combinations of API libraries and none of them are
+viable for practical use. Programs have either thrown a fatal error or have
+leaked memory, not ideal in either case. The memory errors arise because of the
+difference in the SSL\_CTX (ssl\_ctx\_st) structure defined in each library.
+
+All combinations were, painstakingly, obtained by using both valgrind and gdb.
+
+\begin{table}[h!]
+	\begin{center}
+		\begin{tabular}{ l | l | r }
+			\textbf{init}       & \textbf{deinit} & \textbf{Result} \\
+			\hline
+			Open                & Open            & Works! \\
+			Open                & Boring          & SIGABRT \\
+			Open                & Libre           & SIGSEGV \\
+			\rowcolor{gray!25}
+			Boring              & Boring          & Works! \\
+			\rowcolor{gray!25}
+			Boring              & Open            & Leak! \\
+			\rowcolor{gray!25}
+			Boring              & Libre           & Leak! \\
+			\rowcolor{gray!50}
+			Libre               & Libre           & Works! \\
+			\rowcolor{gray!50}
+			Libre               & Boring          & SIGABRT \\
+			\rowcolor{gray!50}
+			Libre               & Open            & SIGSEGV \\
+		\end{tabular}
+		\caption{Tabulated results from testing.}
+	\end{center}
+\end{table}
+
+It is unlikely that we will be able to use BoringSSL's SSL high-level
+library in future versions, as it strays the most from OpenSSL. As noted
+on the BoringSSL project page, ``Although BoringSSL is an open source project,
+it is not intended for general use, as OpenSSL is. We don\'t recommend that
+third parties depend upon it. Doing so is likely to be frustrating because there
+are no guarantees of API or ABI stability.''\cite{website:boringssl}
+
+There was no case in which any of the libraries worked well together, even with
+some rudimentary "shim" code. The differences between each library's SSL
+context, and what is required to correctly allocate it vary too greatly to be
+able to be done in the time span of a sprint.
+
+\cleardoublepage
+
+\chapter{Conclusion}
+\label{sec:con}
+
+We have solved the namespace collision issues and have created a
+proof-of-concept application which can swap out implementations of a function at
+runtime. This deliverable provides a solid foundation for future work.
+
+Further areas of work include increasing library modularity, and the using a
+non-OpenSSL fork (e.g. GnuTLS).
+
+Increased library modularity would allow for more than merely swapping
+in--and--out implementations of TLS. Increased modularity in the HST library
+could allow for the mixing and matching different TLS functions, such as init,
+deinit, write, and read from different implementations.
+
+HST could benefit greatly from using a completely different implementation of
+TLS. A completely different implementation would reduce the amount of code
+required to ensure no namespace collisions, however making sure that there is no
+loss of data may be non-trivial. For example, the conversion of a OpenSSL TLS
+structure to a GnuTLS TLS structure.
+
+There is a lot of variance in how each library stores their respective SSL
+context, notably BoringSSL. There is currently no safe combination of two
+different libraries.
+
+Future work should be done more than just the SSL-related parts of the
+libraries, specifically the cryptography fundamentals of each library.
+
+Areas for future research include the cryptography fundamentals that each
+library provides, specifically their allocators, deallocators, locking, and
+encryption APIs.
+
 \cleardoublepage
 
 \bibliographystyle{plain}
@@ -111,17 +349,45 @@ lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
 \cleardoublepage
 
 \appendix
-\chapter{Referenced code}
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+\chapter{Referenced results}
 
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem
-ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
-lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum
+\section{Example: linking with all 3 implementations}\label{app:linkwithimpl}
+
+\begin{tiny}
+\begin{verbatim}
+$ LD_PRELOAD="lib/libhstopen_init.so lib/libhstboring_deinit.so lib/libhstlibre_version.so" ldd ./bin/init
+        linux-vdso.so.1 (0x00007ffd6755a000)
+        lib/libhstopen_init.so (0x00007f149ba99000)
+        lib/libhstboring_deinit.so (0x00007f149b896000)
+        lib/libhstlibre_version.so (0x00007f149b694000)
+        libhststub.so => /.../hst/libhst/build/lib/libhststub.so (0x00007f149b492000)
+        libc.so.6 => /lib64/libc.so.6 (0x00007f149b0a9000)
+        libdl.so.2 => /lib64/libdl.so.2 (0x00007f149aea5000)
+        libssl.so.1.1 => /.../hst/libhst/open/../../openssl/libssl.so.1.1 (0x00007f149ac3b000)
+        libcrypto.so.1.1 => /.../hst/libhst/open/../../openssl/libcrypto.so.1.1 (0x00007f149a7df000)
+        libssl.so => /.../hst/libhst/boring/../../boringssl/build/ssl/libssl.so (0x00007f149a596000)
+        libcrypto.so => /.../hst/libhst/boring/../../boringssl/build/crypto/libcrypto.so (0x00007f149a1f7000)
+        libcrypto.so.37 => /.../hst/libhst/libre/../../libressl/crypto/.libs/libcrypto.so.37 (0x00007f1499e1d000)
+        /lib64/ld-linux-x86-64.so.2 (0x000055562a483000)
+        libpthread.so.0 => /lib64/libpthread.so.0 (0x00007f1499bff000)
+        libresolv.so.2 => /lib64/libresolv.so.2 (0x00007f14999e4000)
+\end{verbatim}
+\end{tiny}
+
+\newpage
+
+\section{Example: faking the library version}\label{app:fakeversion}
+
+\begin{tiny}
+\begin{verbatim}
+$ LD_PRELOAD="lib/libhstopen_init.so lib/libhstopen_deinit.so lib/libhstlibre_version.so" ./bin/init
+HST: using libre's impl of: hst_tls_version
+Using version: LibreSSL 2.3.2
+HST: using open's impl of: hst_tls_init
+HST: using open's impl of: hst_tls_deinit
+\end{verbatim}
+\end{tiny}
+
+\newpage
 
 \end{document}
